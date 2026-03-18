@@ -10,28 +10,36 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
-        .fc-event { cursor: pointer; border: none !important; padding: 2px 5px; }
-        .status-pending { background-color: #f59e0b !important; }
-        .status-approved { background-color: #10b981 !important; }
-        .status-rejected { background-color: #ef4444 !important; }
+        .fc-event { cursor: pointer; border: none !important; padding: 4px 6px; border-radius: 4px !important; font-size: 0.85rem; }
+        .status-pending { background-color: #f59e0b !important; border-left: 4px solid #b45309 !important; }
+        .status-approved { background-color: #10b981 !important; border-left: 4px solid #047857 !important; }
+        .status-rejected { background-color: #ef4444 !important; border-left: 4px solid #991b1b !important; }
+        
+        /* Notification Dot */
+        .notification-badge { position: absolute; top: -2px; right: -2px; height: 12px; width: 12px; background-color: #ef4444; border: 2px solid white; border-radius: 50%; display: none; }
+        .has-new .notification-badge { display: block; }
+        
+        .loading-overlay { display: none; position: fixed; inset: 0; background: rgba(255,255,255,0.7); z-index: 100; align-items: center; justify-content: center; }
+        .spinner { border: 4px solid rgba(0, 0, 0, 0.1); width: 36px; height: 36px; border-radius: 50%; border-left-color: #2563eb; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body class="min-h-screen">
 
+    <div id="loading-spinner" class="loading-overlay flex">
+        <div class="spinner"></div>
+    </div>
+
     <!-- Login Overlay -->
     <div id="login-overlay" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900 bg-opacity-95 p-4">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8">
-            <div class="text-center mb-8">
-                <div class="inline-flex items-center justify-center w-16 h-16 bg-blue-100 text-blue-600 rounded-full mb-4">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                    </svg>
-                </div>
-                <h1 class="text-2xl font-bold text-gray-800">Clinic Portal Login</h1>
-                <p class="text-gray-500 text-sm mt-2">Access Secure Referral Management</p>
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 text-center">
+            <div class="inline-flex items-center justify-center w-16 h-16 bg-blue-100 text-blue-600 rounded-full mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
             </div>
+            <h1 class="text-2xl font-bold text-gray-800">Clinic Portal Login</h1>
+            <p class="text-gray-500 text-sm mt-2 mb-8">Access Secure Referral Management</p>
             
-            <div class="space-y-4">
+            <div class="space-y-4 text-left">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Select Facility</label>
                     <select id="facility-select" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
@@ -44,79 +52,68 @@
                     <label class="block text-sm font-medium text-gray-700 mb-1">Access Password</label>
                     <input type="password" id="facility-password" placeholder="••••••••" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
                 </div>
-                <button onclick="handleLogin()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition duration-200">
-                    Enter Secure Portal
-                </button>
-                <div id="login-error" class="hidden text-red-500 text-xs text-center mt-2 font-medium">
-                    Invalid password for the selected facility.
-                </div>
-            </div>
-            <div class="mt-6 text-center text-xs text-gray-400">
-                Authorized Personnel Only • Confidential System
+                <button onclick="handleLogin()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition">Enter Portal</button>
+                <div id="login-error" class="hidden text-red-500 text-xs text-center font-medium">Invalid credentials. Authorized personnel only.</div>
             </div>
         </div>
     </div>
 
-    <!-- Main Dashboard -->
+    <!-- Main App -->
     <div id="app-container" class="hidden">
-        <!-- Navigation -->
         <nav class="bg-white border-b border-gray-200 sticky top-0 z-30">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="flex justify-between h-16">
-                    <div class="flex items-center">
-                        <span class="text-blue-600 font-bold text-xl tracking-tight">CARE<span class="text-gray-800">CONNECT</span></span>
-                        <div class="ml-6 h-6 w-px bg-gray-200"></div>
-                        <span id="display-facility" class="ml-6 text-gray-600 font-medium text-sm"></span>
-                    </div>
-                    <div class="flex items-center space-x-4">
-                        <button onclick="showNewReferralModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition flex items-center">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
-                            New Referral
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex justify-between items-center">
+                <div class="flex items-center">
+                    <span class="text-blue-600 font-extrabold text-xl tracking-tight">CARE<span class="text-gray-800">CONNECT</span></span>
+                    <span id="display-facility" class="ml-4 pl-4 border-l border-gray-200 text-gray-600 font-medium text-sm hidden sm:block"></span>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <button onclick="showNewReferralModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition flex items-center shadow-sm">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+                        New Referral
+                    </button>
+                    <div class="relative" id="notif-wrapper">
+                        <button onclick="refreshData()" class="p-2 text-gray-500 hover:bg-gray-100 rounded-full transition relative">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
+                            <span class="notification-badge"></span>
                         </button>
-                        <button onclick="logout()" class="text-gray-500 hover:text-red-600 p-2 rounded-full hover:bg-red-50 transition">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
-                        </button>
                     </div>
+                    <button onclick="logout()" class="p-2 text-gray-400 hover:text-red-600 rounded-full transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7" /></svg>
+                    </button>
                 </div>
             </div>
         </nav>
 
-        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <!-- Left: Stats & Filters -->
-                <div class="space-y-6">
+        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                <!-- Sidebar -->
+                <div class="space-y-6 lg:col-span-1">
                     <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                        <h3 class="text-lg font-semibold text-gray-800 mb-4">Referral Status</h3>
-                        <div class="grid grid-cols-2 gap-4 text-center">
-                            <div class="p-4 bg-blue-50 rounded-lg">
-                                <span class="block text-2xl font-bold text-blue-600" id="stat-total">0</span>
-                                <span class="text-xs text-blue-700 font-medium uppercase tracking-wider">Total</span>
+                        <h3 class="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4">Summary</h3>
+                        <div class="space-y-4">
+                            <div class="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
+                                <span class="text-sm font-medium text-blue-700">Total Cases</span>
+                                <span id="stat-total" class="text-xl font-bold text-blue-800">0</span>
                             </div>
-                            <div class="p-4 bg-yellow-50 rounded-lg">
-                                <span class="block text-2xl font-bold text-yellow-600" id="stat-pending">0</span>
-                                <span class="text-xs text-yellow-700 font-medium uppercase tracking-wider">Pending</span>
+                            <div class="flex justify-between items-center p-3 bg-yellow-50 rounded-lg">
+                                <span class="text-sm font-medium text-yellow-700">Pending</span>
+                                <span id="stat-pending" class="text-xl font-bold text-yellow-800">0</span>
                             </div>
                         </div>
                     </div>
-
+                    
                     <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                        <h3 class="text-lg font-semibold text-gray-800 mb-4">Quick Legend</h3>
+                        <h3 class="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4">Color Legend</h3>
                         <div class="space-y-3">
-                            <div class="flex items-center text-sm text-gray-600">
-                                <span class="w-3 h-3 rounded-full bg-yellow-500 mr-3"></span> Pending Approval
-                            </div>
-                            <div class="flex items-center text-sm text-gray-600">
-                                <span class="w-3 h-3 rounded-full bg-emerald-500 mr-3"></span> Approved / Scheduled
-                            </div>
-                            <div class="flex items-center text-sm text-gray-600">
-                                <span class="w-3 h-3 rounded-full bg-red-500 mr-3"></span> Rejected / Canceled
-                            </div>
+                            <div class="flex items-center text-xs text-gray-600"><span class="w-3 h-3 rounded-full bg-yellow-500 mr-2"></span> Waiting for Receiver</div>
+                            <div class="flex items-center text-xs text-gray-600"><span class="w-3 h-3 rounded-full bg-emerald-500 mr-2"></span> Approved / Finalized</div>
+                            <div class="flex items-center text-xs text-gray-600"><span class="w-3 h-3 rounded-full bg-red-500 mr-2"></span> Declined / Canceled</div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Right: Calendar -->
-                <div class="lg:col-span-2">
+                <!-- Calendar -->
+                <div class="lg:col-span-3">
                     <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
                         <div id="calendar"></div>
                     </div>
@@ -127,75 +124,67 @@
 
     <!-- Referral Modal -->
     <div id="referral-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-        <div class="bg-white rounded-xl shadow-xl w-full max-w-2xl overflow-hidden max-h-[90vh] flex flex-col">
-            <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-slate-50">
-                <h2 class="text-xl font-bold text-gray-800">Referral Request Form</h2>
-                <button onclick="closeReferralModal()" class="text-gray-400 hover:text-gray-600">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                </button>
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-2xl overflow-hidden">
+            <div class="px-6 py-4 border-b bg-gray-50 flex justify-between items-center">
+                <h2 class="text-lg font-bold text-gray-800">New Referral Entry</h2>
+                <button onclick="closeReferralModal()" class="text-gray-400 hover:text-gray-600">✕</button>
             </div>
-            <div class="p-6 overflow-y-auto">
-                <form id="referral-form" class="space-y-4">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">To Facility</label>
-                            <select id="ref-to" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
-                                <option value="Taytay Doctors Multispecialty Hospital">Taytay Doctors Multispecialty Hospital</option>
-                                <option value="Taytay Social Hygiene Clinic">Taytay Social Hygiene Clinic</option>
-                                <option value="Antipolo Social Hygiene Clinic">Antipolo Social Hygiene Clinic</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Referral Type</label>
-                            <select id="ref-type" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
-                                <option value="Transfer">Transfer</option>
-                                <option value="Lab: HIV Viral Load">Lab: HIV Viral Load</option>
-                                <option value="Lab: CD4 Count">Lab: CD4 Count</option>
-                                <option value="RHIVDA">RHIVDA Endorsement</option>
-                                <option value="Other Endorsement">Other Endorsement</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Patient ID/Code (Confidential)</label>
-                            <input type="text" id="ref-patient" required placeholder="e.g. TAY-12345" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Preferred Date & Time</label>
-                            <input type="datetime-local" id="ref-datetime" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
-                        </div>
+            <form id="referral-form" class="p-6 space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">To Facility</label>
+                        <select id="ref-to" required class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none">
+                            <option value="Taytay Doctors Multispecialty Hospital">Taytay Doctors Multispecialty Hospital</option>
+                            <option value="Taytay Social Hygiene Clinic">Taytay Social Hygiene Clinic</option>
+                            <option value="Antipolo Social Hygiene Clinic">Antipolo Social Hygiene Clinic</option>
+                        </select>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Clinical Notes / Reason</label>
-                        <textarea id="ref-notes" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Provide necessary clinical context..."></textarea>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Type of Request</label>
+                        <select id="ref-type" required class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none">
+                            <option value="Transfer">Transfer</option>
+                            <option value="Lab: HIV Viral Load">Lab: HIV Viral Load</option>
+                            <option value="Lab: CD4 Count">Lab: CD4 Count</option>
+                            <option value="RHIVDA">RHIVDA Endorsement</option>
+                            <option value="Other Endorsement">Other Endorsement</option>
+                        </select>
                     </div>
-                </form>
-            </div>
-            <div class="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-end space-x-3">
-                <button onclick="closeReferralModal()" class="px-4 py-2 text-gray-600 font-medium hover:text-gray-800 transition">Cancel</button>
-                <button onclick="submitReferral()" class="px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition">Submit Request</button>
-            </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Patient ID (Confidential)</label>
+                        <input type="text" id="ref-patient" required placeholder="XXX-0000" class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Proposed Date & Time</label>
+                        <input type="datetime-local" id="ref-datetime" required class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Clinical Notes</label>
+                    <textarea id="ref-notes" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Details..."></textarea>
+                </div>
+                <div class="flex justify-end space-x-3 pt-4">
+                    <button type="button" onclick="closeReferralModal()" class="text-gray-500 text-sm font-medium">Cancel</button>
+                    <button type="button" onclick="submitReferral()" class="bg-blue-600 text-white px-6 py-2 rounded-lg font-bold shadow-md hover:bg-blue-700 transition">Send Referral</button>
+                </div>
+            </form>
         </div>
     </div>
 
-    <!-- View/Approval Modal -->
+    <!-- View Modal -->
     <div id="view-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
         <div class="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden">
-            <div id="view-header" class="px-6 py-4 border-b flex justify-between items-center">
-                <h2 class="text-xl font-bold text-gray-800">Referral Details</h2>
-                <button onclick="closeViewModal()" class="text-gray-400 hover:text-gray-600">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                </button>
+            <div class="px-6 py-4 border-b bg-gray-50 flex justify-between items-center">
+                <h2 class="text-lg font-bold text-gray-800">Referral Details</h2>
+                <button onclick="closeViewModal()" class="text-gray-400 hover:text-gray-600">✕</button>
             </div>
             <div class="p-6 space-y-4">
-                <div id="view-content" class="text-sm space-y-3">
-                    <!-- Dynamic content -->
-                </div>
-                <div id="approval-controls" class="pt-4 border-t border-gray-100 hidden">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Facility Reply/Instruction</label>
-                    <textarea id="ref-reply" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" rows="2" placeholder="Instructions for the patient..."></textarea>
-                    <div class="flex space-x-3 mt-4">
-                        <button onclick="updateStatus('Approved')" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-2 rounded-lg font-semibold transition">Approve</button>
-                        <button onclick="updateStatus('Rejected')" class="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 rounded-lg font-semibold transition">Reject</button>
+                <div id="view-content" class="text-sm space-y-3"></div>
+                <div id="approval-controls" class="hidden pt-4 border-t border-gray-100">
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Receiver Instruction / Reply</label>
+                    <textarea id="ref-reply" class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none mb-4" rows="2"></textarea>
+                    <div class="flex space-x-2">
+                        <button onclick="updateStatus('Approved')" class="flex-1 bg-emerald-600 text-white py-2 rounded font-bold">Approve</button>
+                        <button onclick="updateStatus('Rejected')" class="flex-1 bg-red-600 text-white py-2 rounded font-bold">Reject</button>
                     </div>
                 </div>
             </div>
@@ -203,7 +192,6 @@
     </div>
 
     <script>
-        // --- Passwords Configuration ---
         const CLINIC_CREDS = {
             "Taytay Doctors Multispecialty Hospital": "tdmh123",
             "Taytay Social Hygiene Clinic": "tshc123",
@@ -212,182 +200,156 @@
 
         let currentFacility = "";
         let calendar = null;
-        let referrals = []; // In-memory storage for this demo
+        let referrals = [];
         let selectedReferralId = null;
+        let lastCount = 0;
 
-        // Initialize App
-        function initApp() {
+        function showLoading(show) {
+            document.getElementById('loading-spinner').style.display = show ? 'flex' : 'none';
+        }
+
+        function initCalendar() {
             const calendarEl = document.getElementById('calendar');
             calendar = new FullCalendar.Calendar(calendarEl, {
                 initialView: 'dayGridMonth',
-                headerToolbar: {
-                    left: 'prev,next today',
-                    center: 'title',
-                    right: 'dayGridMonth,timeGridWeek'
-                },
-                events: function(info, successCallback) {
-                    // Filter events based on access (either from or to current facility)
-                    const filtered = referrals.filter(r => r.from === currentFacility || r.to === currentFacility);
-                    successCallback(filtered.map(r => ({
+                headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek' },
+                events: (info, success) => {
+                    success(referrals.map(r => ({
                         id: r.id,
                         title: `${r.type}: ${r.patient}`,
                         start: r.start,
-                        className: getStatusClass(r.status),
+                        className: r.status === 'Pending' ? 'status-pending' : (r.status === 'Approved' ? 'status-approved' : 'status-rejected'),
                         extendedProps: r
                     })));
                 },
-                eventClick: function(info) {
-                    openViewModal(info.event.extendedProps);
-                }
+                eventClick: (info) => openViewModal(info.event.extendedProps)
             });
             calendar.render();
-            updateStats();
         }
 
-        function getStatusClass(status) {
-            if (status === 'Pending') return 'status-pending';
-            if (status === 'Approved') return 'status-approved';
-            return 'status-rejected';
+        // --- GOOGLE APPS SCRIPT INTEGRATION ---
+        
+        function refreshData() {
+            if (!currentFacility) return;
+            showLoading(true);
+            google.script.run
+                .withSuccessHandler(data => {
+                    referrals = data;
+                    if (referrals.length > lastCount && lastCount !== 0) {
+                        document.getElementById('notif-wrapper').classList.add('has-new');
+                    }
+                    lastCount = referrals.length;
+                    calendar.refetchEvents();
+                    updateStats();
+                    showLoading(false);
+                })
+                .getReferralsForFacility(currentFacility);
         }
 
-        // Auth Logic
         function handleLogin() {
             const facility = document.getElementById('facility-select').value;
             const password = document.getElementById('facility-password').value;
-            const errorEl = document.getElementById('login-error');
-
             if (CLINIC_CREDS[facility] === password) {
                 currentFacility = facility;
                 document.getElementById('login-overlay').classList.add('hidden');
                 document.getElementById('app-container').classList.remove('hidden');
                 document.getElementById('display-facility').innerText = currentFacility;
-                initApp();
+                initCalendar();
+                refreshData();
+                // START AUTO REFRESH (30 SECONDS)
+                setInterval(refreshData, 30000);
             } else {
-                errorEl.classList.remove('hidden');
+                document.getElementById('login-error').classList.remove('hidden');
             }
         }
 
-        function logout() {
-            location.reload();
-        }
-
-        // Modal Controls
-        function showNewReferralModal() {
-            document.getElementById('referral-modal').classList.remove('hidden');
-            document.getElementById('ref-datetime').value = new Date().toISOString().slice(0, 16);
-            
-            // Clean up facility select (can't refer to self)
-            const select = document.getElementById('ref-to');
-            Array.from(select.options).forEach(opt => {
-                opt.disabled = (opt.value === currentFacility);
-            });
-            if (select.value === currentFacility) {
-                select.selectedIndex = (select.selectedIndex + 1) % select.length;
-            }
-        }
-
-        function closeReferralModal() {
-            document.getElementById('referral-modal').classList.add('hidden');
-        }
-
-        function openViewModal(data) {
-            selectedReferralId = data.id;
-            const content = document.getElementById('view-content');
-            const controls = document.getElementById('approval-controls');
-            
-            content.innerHTML = `
-                <div class="grid grid-cols-3 gap-2">
-                    <span class="text-gray-500 font-medium">Status:</span>
-                    <span class="col-span-2 font-bold ${data.status === 'Pending' ? 'text-yellow-600' : 'text-emerald-600'}">${data.status}</span>
-                    
-                    <span class="text-gray-500 font-medium">From:</span>
-                    <span class="col-span-2 text-gray-800">${data.from}</span>
-                    
-                    <span class="text-gray-500 font-medium">To:</span>
-                    <span class="col-span-2 text-gray-800 font-semibold">${data.to}</span>
-                    
-                    <span class="text-gray-500 font-medium">Type:</span>
-                    <span class="col-span-2 text-gray-800">${data.type}</span>
-                    
-                    <span class="text-gray-500 font-medium">Patient:</span>
-                    <span class="col-span-2 text-blue-700 font-mono">${data.patient}</span>
-                    
-                    <span class="text-gray-500 font-medium">Schedule:</span>
-                    <span class="col-span-2 text-gray-800">${new Date(data.start).toLocaleString()}</span>
-                    
-                    <span class="text-gray-500 font-medium">Notes:</span>
-                    <span class="col-span-2 text-gray-800 italic">"${data.notes || 'No notes provided.'}"</span>
-                </div>
-            `;
-
-            if (data.reply) {
-                content.innerHTML += `
-                    <div class="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-100">
-                        <span class="block text-xs font-bold text-blue-800 uppercase">Clinic Reply:</span>
-                        <p class="text-blue-900">${data.reply}</p>
-                    </div>
-                `;
-            }
-
-            // Show controls only if viewing a request received BY the current facility that is still pending
-            if (data.to === currentFacility && data.status === 'Pending') {
-                controls.classList.remove('hidden');
-                document.getElementById('ref-reply').value = "";
-            } else {
-                controls.classList.add('hidden');
-            }
-
-            document.getElementById('view-modal').classList.remove('hidden');
-        }
-
-        function closeViewModal() {
-            document.getElementById('view-modal').classList.add('hidden');
-        }
-
-        // Data Logic
         function submitReferral() {
             const form = document.getElementById('referral-form');
-            if (!form.checkValidity()) {
-                form.reportValidity();
-                return;
-            }
+            if (!form.checkValidity()) return form.reportValidity();
 
-            const newRef = {
+            const data = {
                 id: Date.now().toString(),
                 from: currentFacility,
                 to: document.getElementById('ref-to').value,
                 type: document.getElementById('ref-type').value,
                 patient: document.getElementById('ref-patient').value,
                 start: document.getElementById('ref-datetime').value,
-                notes: document.getElementById('ref-notes').value,
-                status: 'Pending',
-                reply: ''
+                notes: document.getElementById('ref-notes').value
             };
 
-            referrals.push(newRef);
-            calendar.refetchEvents();
-            updateStats();
-            closeReferralModal();
-            form.reset();
+            showLoading(true);
+            google.script.run
+                .withSuccessHandler(() => {
+                    closeReferralModal();
+                    refreshData();
+                })
+                .submitReferralToSheet(data);
         }
 
         function updateStatus(status) {
             const reply = document.getElementById('ref-reply').value;
-            const index = referrals.findIndex(r => r.id === selectedReferralId);
-            if (index !== -1) {
-                referrals[index].status = status;
-                referrals[index].reply = reply;
-                calendar.refetchEvents();
-                updateStats();
-                closeViewModal();
-            }
+            showLoading(true);
+            google.script.run
+                .withSuccessHandler(() => {
+                    closeViewModal();
+                    refreshData();
+                })
+                .updateReferralStatusInSheet(selectedReferralId, status, reply);
         }
 
-        function updateStats() {
-            const filtered = referrals.filter(r => r.from === currentFacility || r.to === currentFacility);
-            document.getElementById('stat-total').innerText = filtered.length;
-            document.getElementById('stat-pending').innerText = filtered.filter(r => r.status === 'Pending').length;
+        // --- UI UTILS ---
+
+        function openViewModal(data) {
+            selectedReferralId = data.id;
+            document.getElementById('notif-wrapper').classList.remove('has-new');
+            const content = document.getElementById('view-content');
+            content.innerHTML = `
+                <div class="grid grid-cols-3 gap-2 border-b pb-3 mb-3">
+                    <span class="text-gray-400 font-bold uppercase text-[10px]">Status</span>
+                    <span class="col-span-2 font-bold ${data.status === 'Pending' ? 'text-yellow-600' : 'text-emerald-600'}">${data.status}</span>
+                    <span class="text-gray-400 font-bold uppercase text-[10px]">From</span>
+                    <span class="col-span-2 text-gray-700">${data.from}</span>
+                    <span class="text-gray-400 font-bold uppercase text-[10px]">To</span>
+                    <span class="col-span-2 text-gray-700 font-semibold">${data.to}</span>
+                </div>
+                <div class="space-y-2">
+                    <p><strong>Patient:</strong> <span class="bg-blue-50 text-blue-700 px-1 rounded font-mono">${data.patient}</span></p>
+                    <p><strong>Service:</strong> ${data.type}</p>
+                    <p><strong>Scheduled:</strong> ${new Date(data.start).toLocaleString()}</p>
+                    <p class="text-gray-600 italic mt-2 border-l-2 pl-2 border-gray-200">${data.notes || 'No clinical notes.'}</p>
+                </div>
+            `;
+            if (data.reply) {
+                content.innerHTML += `<div class="mt-4 p-3 bg-blue-50 border border-blue-100 rounded text-blue-800">
+                    <strong class="text-[10px] uppercase block mb-1">Clinic Reply</strong>${data.reply}
+                </div>`;
+            }
+            
+            const controls = document.getElementById('approval-controls');
+            if (data.to === currentFacility && data.status === 'Pending') {
+                controls.classList.remove('hidden');
+                document.getElementById('ref-reply').value = "";
+            } else { controls.classList.add('hidden'); }
+            
+            document.getElementById('view-modal').classList.remove('hidden');
         }
+
+        function showNewReferralModal() {
+            document.getElementById('referral-modal').classList.remove('hidden');
+            const select = document.getElementById('ref-to');
+            Array.from(select.options).forEach(opt => opt.disabled = (opt.value === currentFacility));
+            if (select.value === currentFacility) select.selectedIndex = (select.selectedIndex + 1) % select.length;
+        }
+
+        function closeReferralModal() { document.getElementById('referral-modal').classList.add('hidden'); }
+        function closeViewModal() { document.getElementById('view-modal').classList.add('hidden'); }
+        function logout() { location.reload(); }
+        function updateStats() {
+            document.getElementById('stat-total').innerText = referrals.length;
+            document.getElementById('stat-pending').innerText = referrals.filter(r => r.status === 'Pending' && r.to === currentFacility).length;
+        }
+
+        window.onload = () => showLoading(false);
     </script>
 </body>
 </html>
